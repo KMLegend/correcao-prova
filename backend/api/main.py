@@ -36,23 +36,6 @@ use_case = EvaluateExamUseCase(extractor)
 file_validator = FileValidator()
 
 
-app.include_router(api_router)
-
-# Configuração para arquivos estáticos (Frontend)
-# O Dockerfile colocará o build do frontend em /app/static
-STATIC_DIR = os.path.join(os.getcwd(), "static")
-
-if os.path.exists(STATIC_DIR):
-    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
-
-    @app.get("/{full_path:path}")
-    async def serve_spa(full_path: str):
-        """Redireciona todas as rotas não-API para o index.html do React."""
-        if full_path.startswith("api"):
-            raise HTTPException(status_code=404)
-        return FileResponse(os.path.join(STATIC_DIR, "index.html"))
-
-
 api_router = APIRouter(prefix="/api")
 
 
@@ -101,6 +84,25 @@ async def corrigir_com_gabarito_json(
         raise HTTPException(status_code=422, detail=str(error))
 
     return _format_response(results)
+
+
+app.include_router(api_router)
+
+# Configuração para arquivos estáticos (Frontend)
+# O Dockerfile colocará o build do frontend em /app/static
+STATIC_DIR = os.path.join(os.getcwd(), "static")
+
+if os.path.exists(STATIC_DIR):
+    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        """Redireciona todas as rotas não-API para o index.html do React."""
+        if full_path.startswith("api"):
+            raise HTTPException(status_code=404)
+        return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+
 
 
 def _parse_json_answer_key(json_string: str) -> AnswerSheet:
