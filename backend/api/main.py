@@ -4,11 +4,17 @@ from typing import List
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
+
 from adapters.opencv_extractor import OpenCVAnswerExtractor
 from api.validators import FileValidator, FileValidationError
 from domain.entities import Answer, AnswerSheet, CorrectionResult
 from domain.value_objects import AnswerChoice, QuestionNumber
 from use_cases.evaluate_exam import EvaluateExamUseCase
+
+from fastapi import APIRouter
 
 
 app = FastAPI(
@@ -30,12 +36,32 @@ use_case = EvaluateExamUseCase(extractor)
 file_validator = FileValidator()
 
 
-@app.get("/")
-async def root():
+app.include_router(api_router)
+
+# Configuração para arquivos estáticos (Frontend)
+# O Dockerfile colocará o build do frontend em /app/static
+STATIC_DIR = os.path.join(os.getcwd(), "static")
+
+if os.path.exists(STATIC_DIR):
+    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        """Redireciona todas as rotas não-API para o index.html do React."""
+        if full_path.startswith("api"):
+            raise HTTPException(status_code=404)
+        return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+
+api_router = APIRouter(prefix="/api")
+
+
+@api_router.get("/")
+async def api_root():
     return {"message": "Sistema de Correção Automática de Provas - API Online"}
 
 
-@app.post("/corrigir")
+@api_router.post("/corrigir")
 async def corrigir_prova(
     gabarito: UploadFile = File(..., description="Imagem do gabarito oficial"),
     cartao: UploadFile = File(..., description="Imagem do cartão-resposta do aluno"),
@@ -58,7 +84,7 @@ async def corrigir_prova(
     return _format_response(results)
 
 
-@app.post("/corrigir-com-json")
+@api_router.post("/corrigir-com-json")
 async def corrigir_com_gabarito_json(
     gabarito_json: str = File(..., description="JSON do gabarito no formato {questao: resposta}"),
     cartao: UploadFile = File(..., description="Imagem do cartão-resposta do aluno"),

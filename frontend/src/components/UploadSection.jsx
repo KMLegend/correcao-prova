@@ -22,7 +22,7 @@ export default function UploadSection({ onCorrection }) {
 
     try {
       // Usando fetch nativo conforme sugerido na doc (ou axios se preferir)
-      const response = await fetch("http://localhost:8000/corrigir", {
+      const response = await fetch("/api/corrigir", {
         method: "POST",
         body: formData,
       });
